@@ -1,0 +1,22 @@
+# Entornos virtuales (Python)
+**/venv/
+.venv/
+env/
+bin/
+lib/
+share/
+
+# Logs y Binarios de Spark/Airflow
+**/logs/
+**/plugins/*.jar
+spark-binaries/
+**/checkpoint/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# Datos y variables de entorno
+.env
+**/data/*.csv
+**/data/*.parquet

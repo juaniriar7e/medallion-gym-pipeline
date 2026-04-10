@@ -1,0 +1,18 @@
+# Airflow & Spark logs
+datalab-home/logs/
+datalab-home/plugins/postgresql-42.7.2.jar
+spark-binaries/
+
+# Python & Virtual Environments
+**/venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data (Evita subir archivos .csv o .parquet pesados si los tienes localmente)
+datalab-home/data/
+
+# OS & Environment
+.DS_Store
+.env

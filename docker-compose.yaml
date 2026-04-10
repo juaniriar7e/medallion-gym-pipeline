@@ -1,0 +1,119 @@
+x-airflow-common:
+  &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: custom-airflow-spark:latest
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/datalab
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/datalab
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 1
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 1
+    AIRFLOW__CORE__PARALLELISM: 4
+    SPARK_HOME: /opt/spark_dist
+    PATH: "/home/airflow/.local/bin:/opt/spark_dist/bin:${PATH}"
+  volumes:
+    - spark-binaries:/opt/spark_dist:z
+    - ./datalab-home/dags:/opt/airflow/dags:z
+    - ./datalab-home/logs:/opt/airflow/logs:z
+    - ./datalab-home/config:/opt/airflow/config:z
+    - ./datalab-home/plugins:/opt/airflow/plugins:z
+    - ./datalab-home/scripts:/opt/airflow/scripts:z
+    - ./datalab-home/data:/opt/bitnami/data:z
+    - ./datalab-home/lab2_dbt:/opt/airflow/dbt:z
+  user: "1000:0" # Sincronizado con el UID de Bitnami para evitar errores de UID inválido
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: datalab
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow", "-d", "datalab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin_ui
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    restart: always
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow_webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow_scheduler
+    command: scheduler
+    ports:
+      - "7000:7000"
+      - "7001:7001"
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        mkdir -p /sources/datalab-home/logs /sources/datalab-home/dags /sources/datalab-home/plugins
+        chown -R "1000:0" /sources/datalab-home
+        exec /entrypoint airflow db init && \
+        airflow users create --username airflow --password airflow --firstname Juan --lastname Pablo --role Admin --email admin@example.com
+    user: "0:0"
+    volumes:
+      - .:/sources
+
+  spark-master:
+    image: public.ecr.aws/bitnami/spark:4.1.1-debian-12-r9
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8081:8080"
+      - "7077:7077"
+    volumes:
+      - spark-binaries:/opt/bitnami/spark:z
+      - ./datalab-home/scripts:/opt/bitnami/app-scripts:z
+      - ./datalab-home/data:/opt/bitnami/data:z
+      - ./datalab-home/plugins:/opt/bitnami/plugins:z
+    restart: always
+
+  spark-worker:
+    image: public.ecr.aws/bitnami/spark:4.1.1-debian-12-r9
+    container_name: spark_worker
+    user: "1000"
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    volumes:
+      - ./datalab-home/scripts:/opt/bitnami/app-scripts:z
+      - ./datalab-home/data:/opt/bitnami/data:z
+      - ./datalab-home/plugins:/opt/bitnami/plugins:z
+    restart: always
+
+volumes:
+  postgres-db-volume:
+  spark-binaries:

@@ -1,0 +1,23 @@
+name: 'gym_project'
+version: '1.0.0'
+config-version: 2
+
+# Esto debe coincidir con el nombre del perfil en profiles.yml
+profile: 'gym_project_profile'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Aquí definimos que todo lo que esté en staging sea una VISTA
+models:
+  gym_project:
+    staging:
+      +materialized: view

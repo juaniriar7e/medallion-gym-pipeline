@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: public
+    database: datalab
+    schema: public
+    tables:
+      - name: maquinas_gym
+      - name: entrenamientos_raw
